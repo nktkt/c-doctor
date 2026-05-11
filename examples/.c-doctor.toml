@@ -1,0 +1,16 @@
+# Sample c-doctor config. Lives alongside the C sources it applies to.
+
+[rules]
+# Silence a rule entirely:
+unsafe-strcpy = "off"
+
+# Downgrade severity (still reported, just at a lower level):
+unsafe-sprintf = "low"
+
+[scan]
+# Substring or glob patterns to ignore.
+ignore = ["good.c"]
+
+[score]
+# CI gate.
+fail_under = 70
