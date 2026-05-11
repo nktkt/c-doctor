@@ -1,0 +1,31 @@
+[package]
+name = "c-doctor"
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+description = "Health diagnostics for C codebases — unsafe-fn, memory, dead-code detection with a 0-100 score."
+repository = "https://github.com/nktkt/c-doctor"
+homepage = "https://github.com/nktkt/c-doctor"
+documentation = "https://github.com/nktkt/c-doctor#readme"
+readme = "README.md"
+keywords = ["c", "linter", "static-analysis", "lint", "cli"]
+categories = ["command-line-utilities", "development-tools"]
+exclude = [
+    "/.github",
+    "/.claude",
+    "/examples/.c-doctor.toml",
+]
+
+[[bin]]
+name = "c-doctor"
+path = "src/main.rs"
+
+[dependencies]
+regex = "1"
+toml = { version = "0.8", default-features = false, features = ["parse"] }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true

@@ -2,12 +2,12 @@
 description: Run c-doctor health check on C code under the given path (defaults to the repo)
 ---
 
-Run `./rust/target/release/c-doctor` (relative to the project root) on `$ARGUMENTS` — or on `.` if no argument was given.
+Run `./target/release/c-doctor` (relative to the project root) on `$ARGUMENTS` — or on `.` if no argument was given.
 
 Before running, verify the binary exists. If it doesn't, build it first with:
 
 ```
-cargo build --release --manifest-path rust/Cargo.toml
+cargo build --release
 ```
 
 After running, briefly summarize for the user:

@@ -41,24 +41,30 @@ impl Config {
     }
 
     pub fn parse(src: &str) -> Result<Self, String> {
-        let value: toml::Value = toml::from_str(src)
-            .map_err(|e| format!("parsing .c-doctor.toml: {}", e))?;
+        let value: toml::Value =
+            toml::from_str(src).map_err(|e| format!("parsing .c-doctor.toml: {}", e))?;
         let mut cfg = Self::empty();
 
         if let Some(rules) = value.get("rules").and_then(|v| v.as_table()) {
             for (k, v) in rules {
                 let s = v.as_str().ok_or_else(|| {
-                    format!("rules.{} must be a string (off|critical|high|medium|low)", k)
+                    format!(
+                        "rules.{} must be a string (off|critical|high|medium|low)",
+                        k
+                    )
                 })?;
                 let action = match s {
                     "off" | "disabled" | "false" => RuleAction::Off,
                     "critical" => RuleAction::Severity(Severity::Critical),
-                    "high"     => RuleAction::Severity(Severity::High),
-                    "medium"   => RuleAction::Severity(Severity::Medium),
-                    "low"      => RuleAction::Severity(Severity::Low),
-                    other => return Err(format!(
-                        "rules.{} = \"{}\": expected off|critical|high|medium|low", k, other
-                    )),
+                    "high" => RuleAction::Severity(Severity::High),
+                    "medium" => RuleAction::Severity(Severity::Medium),
+                    "low" => RuleAction::Severity(Severity::Low),
+                    other => {
+                        return Err(format!(
+                            "rules.{} = \"{}\": expected off|critical|high|medium|low",
+                            k, other
+                        ))
+                    }
                 };
                 cfg.rules.insert(k.clone(), action);
             }
@@ -167,18 +173,30 @@ mod tests {
             fail_under = 75
         "#;
         let c = Config::parse(src).unwrap();
-        assert!(matches!(c.rules.get("unsafe-strcpy"), Some(RuleAction::Off)));
-        assert!(matches!(c.rules.get("unsafe-sprintf"), Some(RuleAction::Severity(Severity::Low))));
-        assert!(matches!(c.rules.get("unsafe-gets"), Some(RuleAction::Severity(Severity::Critical))));
+        assert!(matches!(
+            c.rules.get("unsafe-strcpy"),
+            Some(RuleAction::Off)
+        ));
+        assert!(matches!(
+            c.rules.get("unsafe-sprintf"),
+            Some(RuleAction::Severity(Severity::Low))
+        ));
+        assert!(matches!(
+            c.rules.get("unsafe-gets"),
+            Some(RuleAction::Severity(Severity::Critical))
+        ));
         assert_eq!(c.ignore.len(), 2);
         assert_eq!(c.fail_under, Some(75));
     }
 
     #[test]
     fn parse_rejects_bad_severity() {
-        assert!(Config::parse(r#"[rules]
+        assert!(Config::parse(
+            r#"[rules]
             unsafe-gets = "kinda-bad"
-        "#).is_err());
+        "#
+        )
+        .is_err());
     }
 
     #[test]
@@ -204,19 +222,32 @@ mod tests {
     #[test]
     fn apply_drops_off_rules() {
         use crate::rules::Issue;
-        let cfg = Config::parse(r#"[rules]
+        let cfg = Config::parse(
+            r#"[rules]
             unsafe-strcpy = "off"
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut issues = vec![
             Issue {
-                file: "t.c".into(), line: 1, col: 1,
-                rule: "unsafe-strcpy", category: "safety",
-                severity: Severity::High, message: String::new(), suggestion: None,
+                file: "t.c".into(),
+                line: 1,
+                col: 1,
+                rule: "unsafe-strcpy",
+                category: "safety",
+                severity: Severity::High,
+                message: String::new(),
+                suggestion: None,
             },
             Issue {
-                file: "t.c".into(), line: 2, col: 1,
-                rule: "unsafe-gets", category: "safety",
-                severity: Severity::Critical, message: String::new(), suggestion: None,
+                file: "t.c".into(),
+                line: 2,
+                col: 1,
+                rule: "unsafe-gets",
+                category: "safety",
+                severity: Severity::Critical,
+                message: String::new(),
+                suggestion: None,
             },
         ];
         cfg.apply_rules(&mut issues);
@@ -227,13 +258,21 @@ mod tests {
     #[test]
     fn apply_overrides_severity() {
         use crate::rules::Issue;
-        let cfg = Config::parse(r#"[rules]
+        let cfg = Config::parse(
+            r#"[rules]
             unsafe-sprintf = "low"
-        "#).unwrap();
+        "#,
+        )
+        .unwrap();
         let mut issues = vec![Issue {
-            file: "t.c".into(), line: 1, col: 1,
-            rule: "unsafe-sprintf", category: "safety",
-            severity: Severity::High, message: String::new(), suggestion: None,
+            file: "t.c".into(),
+            line: 1,
+            col: 1,
+            rule: "unsafe-sprintf",
+            category: "safety",
+            severity: Severity::High,
+            message: String::new(),
+            suggestion: None,
         }];
         cfg.apply_rules(&mut issues);
         assert_eq!(issues.len(), 1);

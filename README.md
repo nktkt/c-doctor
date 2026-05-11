@@ -1,5 +1,8 @@
 # c-doctor
 
+[![CI](https://github.com/nktkt/c-doctor/actions/workflows/ci.yml/badge.svg)](https://github.com/nktkt/c-doctor/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 Health diagnostics for C codebases. Scans `.c` / `.h` files and outputs a 0–100
 score with actionable issues — the patterns AI coding agents (and humans) get
 wrong: unsafe functions, memory hazards, dead code, deep nesting, format-string
@@ -40,7 +43,7 @@ by category
 | **deadcode**     | code after `return` / `break` / `continue` / `exit()` |
 | **portability**  | `<windows.h>` etc. used without `#ifdef _WIN32` |
 
-Each rule has a positive *and* negative test fixture in `rust/src/rules.rs` —
+Each rule has a positive *and* negative test fixture in `src/rules.rs` —
 50 unit tests in total. Rules are tuned to skip well-known idioms:
 `if (!p) return;` (NULL check), `do { … } while(0)` macros (continuation), the
 `if ((x = …))` "I really meant this assignment" idiom, declarations like
@@ -50,7 +53,7 @@ Each rule has a positive *and* negative test fixture in `rust/src/rules.rs` —
 
 ```sh
 git clone https://github.com/nktkt/c-doctor
-cd c-doctor/rust
+cd c-doctor
 cargo build --release
 ./target/release/c-doctor --help
 ```
@@ -58,7 +61,13 @@ cargo build --release
 Or install directly with cargo:
 
 ```sh
-cargo install --git https://github.com/nktkt/c-doctor c-doctor
+cargo install --git https://github.com/nktkt/c-doctor
+```
+
+Once it's published to crates.io:
+
+```sh
+cargo install c-doctor
 ```
 
 ## Usage
@@ -137,7 +146,7 @@ The `.claude/` directory ships an opt-in integration:
   edits it; prints the report only when issues are found, stays quiet on
   clean files and non-C edits.
 
-Both pieces auto-locate the binary at `rust/target/release/c-doctor` relative
+Both pieces auto-locate the binary at `target/release/c-doctor` relative
 to the project root.
 
 To enable in another project: copy `.claude/commands/c-doctor.md`,
@@ -168,16 +177,15 @@ milliseconds even on 200k-LOC codebases.
 
 ```
 .
-├── rust/             # the tool itself
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs       # CLI, arg parsing, exit codes
-│       ├── preprocess.rs # comment/string blanking, layout-preserving
-│       ├── scanner.rs    # .c/.h discovery, skip dirs
-│       ├── rules.rs      # 14 detectors + 38 unit tests
-│       ├── scorer.rs     # density-based scoring
-│       ├── reporter.rs   # ANSI + JSON output
-│       └── config.rs     # .c-doctor.toml loader
+├── Cargo.toml
+├── src/
+│   ├── main.rs       # CLI, arg parsing, exit codes
+│   ├── preprocess.rs # comment/string blanking, layout-preserving
+│   ├── scanner.rs    # .c/.h discovery, skip dirs
+│   ├── rules.rs      # 14 detectors + 38 unit tests
+│   ├── scorer.rs     # density-based scoring
+│   ├── reporter.rs   # ANSI + JSON output
+│   └── config.rs     # .c-doctor.toml loader
 ├── examples/         # bad.c (dirty), good.c (clean), sample config
 └── .claude/          # Claude Code slash command + post-edit hook
 ```
@@ -190,7 +198,7 @@ cargo build --release  # ~1.8 MB binary
 ```
 
 When adding a new rule, add both a positive and a negative test fixture next
-to the rule in `rust/src/rules.rs`. The detector should run in milliseconds
+to the rule in `src/rules.rs`. The detector should run in milliseconds
 even on large codebases — prefer cheap regex passes over per-line work where
 both are options.
 

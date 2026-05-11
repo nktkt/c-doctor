@@ -29,11 +29,18 @@ fn parse_args() -> Result<Options, String> {
         match a.as_str() {
             "--json" => json = true,
             "--fail-under" => {
-                let v = args.next().ok_or_else(|| "--fail-under requires an integer".to_string())?;
-                fail_under = Some(v.parse().map_err(|_| format!("invalid --fail-under value: {v}"))?);
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--fail-under requires an integer".to_string())?;
+                fail_under = Some(
+                    v.parse()
+                        .map_err(|_| format!("invalid --fail-under value: {v}"))?,
+                );
             }
             "--config" => {
-                let v = args.next().ok_or_else(|| "--config requires a path".to_string())?;
+                let v = args
+                    .next()
+                    .ok_or_else(|| "--config requires a path".to_string())?;
                 config_path = Some(PathBuf::from(v));
             }
             "--no-config" => no_config = true,
@@ -60,7 +67,13 @@ fn parse_args() -> Result<Options, String> {
         paths.push(PathBuf::from("."));
     }
 
-    Ok(Options { paths, json, fail_under, config_path, no_config })
+    Ok(Options {
+        paths,
+        json,
+        fail_under,
+        config_path,
+        no_config,
+    })
 }
 
 fn load_config(opts: &Options) -> Result<config::Config, String> {

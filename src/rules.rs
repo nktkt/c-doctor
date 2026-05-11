@@ -1,3 +1,11 @@
+// Rule detectors. Each `check_*` function pushes findings into the shared
+// issues vec. We intentionally compile per-issue regexes (e.g. `alloc-no-null-
+// check`, `use-after-free`) since the variable name being matched is dynamic,
+// and we keep the `#[cfg(test)] mod tests` block at the end of the file for
+// proximity to the rule definitions even though the entry point sits above it.
+#![allow(clippy::regex_creation_in_loops)]
+#![allow(clippy::items_after_test_module)]
+
 use regex::Regex;
 use std::sync::OnceLock;
 
@@ -65,7 +73,13 @@ impl<'a> Ctx<'a> {
             }
         }
         let lines: Vec<&str> = clean.split('\n').collect();
-        Self { file, src_orig, clean, line_starts, lines }
+        Self {
+            file,
+            src_orig,
+            clean,
+            line_starts,
+            lines,
+        }
     }
     fn pos_of(&self, idx: usize) -> (usize, usize) {
         let line = match self.line_starts.binary_search(&idx) {
@@ -93,11 +107,36 @@ struct UnsafeFunc {
 }
 
 const UNSAFE_FUNCS: &[UnsafeFunc] = &[
-    UnsafeFunc { name: "gets",     severity: Severity::Critical, msg: "gets() cannot bound input and is removed from C11; always overflows on long input", fix: "fgets(buf, sizeof(buf), stdin)" },
-    UnsafeFunc { name: "strcpy",   severity: Severity::High,     msg: "strcpy() has no bounds check; one wrong size assumption is a buffer overflow",     fix: "strlcpy(dst, src, sizeof(dst)) or snprintf" },
-    UnsafeFunc { name: "strcat",   severity: Severity::High,     msg: "strcat() has no bounds check on the destination",                                  fix: "strlcat(dst, src, sizeof(dst))" },
-    UnsafeFunc { name: "sprintf",  severity: Severity::High,     msg: "sprintf() has no buffer size argument; output length can exceed the destination", fix: "snprintf(buf, sizeof(buf), ...)" },
-    UnsafeFunc { name: "vsprintf", severity: Severity::High,     msg: "vsprintf() has no buffer size argument",                                           fix: "vsnprintf(buf, sizeof(buf), ...)" },
+    UnsafeFunc {
+        name: "gets",
+        severity: Severity::Critical,
+        msg: "gets() cannot bound input and is removed from C11; always overflows on long input",
+        fix: "fgets(buf, sizeof(buf), stdin)",
+    },
+    UnsafeFunc {
+        name: "strcpy",
+        severity: Severity::High,
+        msg: "strcpy() has no bounds check; one wrong size assumption is a buffer overflow",
+        fix: "strlcpy(dst, src, sizeof(dst)) or snprintf",
+    },
+    UnsafeFunc {
+        name: "strcat",
+        severity: Severity::High,
+        msg: "strcat() has no bounds check on the destination",
+        fix: "strlcat(dst, src, sizeof(dst))",
+    },
+    UnsafeFunc {
+        name: "sprintf",
+        severity: Severity::High,
+        msg: "sprintf() has no buffer size argument; output length can exceed the destination",
+        fix: "snprintf(buf, sizeof(buf), ...)",
+    },
+    UnsafeFunc {
+        name: "vsprintf",
+        severity: Severity::High,
+        msg: "vsprintf() has no buffer size argument",
+        fix: "vsnprintf(buf, sizeof(buf), ...)",
+    },
 ];
 
 fn check_unsafe_funcs(ctx: &Ctx, out: &mut Vec<Issue>) {
@@ -179,7 +218,9 @@ fn check_scanf_no_width(ctx: &Ctx, out: &mut Vec<Issue>) {
                 category: "safety",
                 severity: Severity::High,
                 message: "scanf %s/%[ without a width specifier risks buffer overflow".to_string(),
-                suggestion: Some("add an explicit field width, e.g. %63s for a 64-byte buffer".to_string()),
+                suggestion: Some(
+                    "add an explicit field width, e.g. %63s for a 64-byte buffer".to_string(),
+                ),
             });
         }
     }
@@ -331,7 +372,9 @@ fn check_header_guards(ctx: &Ctx, out: &mut Vec<Issue>) {
         rule: "missing-header-guard",
         category: "architecture",
         severity: Severity::Medium,
-        message: "header has no include guard or #pragma once — multiple inclusion will redefine symbols".to_string(),
+        message:
+            "header has no include guard or #pragma once — multiple inclusion will redefine symbols"
+                .to_string(),
         suggestion: Some("#pragma once  (or #ifndef FOO_H / #define FOO_H ... #endif)".to_string()),
     });
 }
@@ -348,16 +391,35 @@ struct Func {
 // C reserved words that can appear in `keyword (...) { ... }` form and would
 // otherwise be miscaptured as function names by a permissive signature regex.
 const CONTROL_KEYWORDS: &[&str] = &[
-    "if", "else", "while", "for", "do", "switch", "case", "default",
-    "return", "break", "continue", "goto", "sizeof", "typedef",
-    "struct", "union", "enum", "__attribute__",
+    "if",
+    "else",
+    "while",
+    "for",
+    "do",
+    "switch",
+    "case",
+    "default",
+    "return",
+    "break",
+    "continue",
+    "goto",
+    "sizeof",
+    "typedef",
+    "struct",
+    "union",
+    "enum",
+    "__attribute__",
 ];
 
 fn find_functions(ctx: &Ctx) -> Vec<Func> {
     // Type prefix must start with a word char (or `*`/`[`/`]`) — bare leading
     // whitespace was letting `switch (x)` capture `switch` as a "function".
-    let same_line = re!(r"^[ \t]*(?:(?:static|inline|extern|const|unsigned|signed|register|volatile|_Noreturn|__inline__|__attribute__\s*\([^)]*\))\s+)*[\w\*\[\]][\w\*\[\]\s]*?\s+\b(\w+)\s*\([^;{}]*\)\s*\{[ \t]*$");
-    let head_only = re!(r"^[ \t]*(?:(?:static|inline|extern|const|unsigned|signed|register|volatile|_Noreturn|__inline__|__attribute__\s*\([^)]*\))\s+)*[\w\*\[\]][\w\*\[\]\s]*?\s+\b(\w+)\s*\([^;{}]*\)[ \t]*$");
+    let same_line = re!(
+        r"^[ \t]*(?:(?:static|inline|extern|const|unsigned|signed|register|volatile|_Noreturn|__inline__|__attribute__\s*\([^)]*\))\s+)*[\w\*\[\]][\w\*\[\]\s]*?\s+\b(\w+)\s*\([^;{}]*\)\s*\{[ \t]*$"
+    );
+    let head_only = re!(
+        r"^[ \t]*(?:(?:static|inline|extern|const|unsigned|signed|register|volatile|_Noreturn|__inline__|__attribute__\s*\([^)]*\))\s+)*[\w\*\[\]][\w\*\[\]\s]*?\s+\b(\w+)\s*\([^;{}]*\)[ \t]*$"
+    );
     let open_brace_only = re!(r"^[ \t]*\{[ \t]*$");
 
     let mut funcs = Vec::new();
@@ -392,8 +454,8 @@ fn find_functions(ctx: &Ctx) -> Vec<Func> {
         while li < lines.len() && !stopped {
             let bytes = lines[li].as_bytes();
             let from = if li == body_line { open_col } else { 0 };
-            for ci in from..bytes.len() {
-                match bytes[ci] {
+            for &c in bytes.iter().skip(from) {
+                match c {
                     b'{' => {
                         depth += 1;
                         if depth > max_depth {
@@ -467,7 +529,9 @@ fn check_function_metrics(ctx: &Ctx, out: &mut Vec<Issue>) {
 // ---------- dead code ----------
 
 fn check_dead_code(ctx: &Ctx, out: &mut Vec<Issue>) {
-    let term = re!(r"\b(?:return\b[^;]*;|break\s*;|continue\s*;|goto\s+\w+\s*;|exit\s*\([^)]*\)\s*;|abort\s*\(\s*\)\s*;)");
+    let term = re!(
+        r"\b(?:return\b[^;]*;|break\s*;|continue\s*;|goto\s+\w+\s*;|exit\s*\([^)]*\)\s*;|abort\s*\(\s*\)\s*;)"
+    );
     let case_re = re!(r"^(?:case\b|default\s*:)");
     let label_re = re!(r"^\w+\s*:[^:]");
     // Terminator is the body of an unbraced control statement (so the "next"
@@ -552,7 +616,8 @@ fn check_strcmp_as_bool(ctx: &Ctx, out: &mut Vec<Issue>) {
     // `if (strcmp(a,b))` — strcmp returns 0 on equal, so a bare truthiness test
     // reads inverted from the typical English intent. Also catches !strcmp,
     // which is "works but confusing".
-    let re = re!(r"\bif\s*\(\s*(!?)\s*(strcmp|strncmp|memcmp|wcscmp)\s*\(([^()]|\([^()]*\))*\)\s*\)");
+    let re =
+        re!(r"\bif\s*\(\s*(!?)\s*(strcmp|strncmp|memcmp|wcscmp)\s*\(([^()]|\([^()]*\))*\)\s*\)");
     for cap in re.captures_iter(ctx.clean) {
         let bang = cap.get(1).map(|m| m.as_str()).unwrap_or("");
         let fn_name = cap.get(2).unwrap().as_str();
@@ -729,9 +794,7 @@ fn check_portability(ctx: &Ctx, out: &mut Vec<Issue>) {
             message: format!(
                 "<{header}> is Windows-only — wrap in #ifdef _WIN32 for cross-platform builds"
             ),
-            suggestion: Some(format!(
-                "#ifdef _WIN32\n#include <{header}>\n#endif"
-            )),
+            suggestion: Some(format!("#ifdef _WIN32\n#include <{header}>\n#endif")),
         });
     }
 }
@@ -788,14 +851,20 @@ mod tests {
     }
     #[test]
     fn unsafe_gets_ignored_in_string_literal() {
-        assert_quiet("int main(){const char *s = \"gets(b)\"; return 0;}", "unsafe-gets");
+        assert_quiet(
+            "int main(){const char *s = \"gets(b)\"; return 0;}",
+            "unsafe-gets",
+        );
     }
     #[test]
     fn unsafe_strcpy_strcat_sprintf_vsprintf_fire() {
         assert_fires("void f(char*d,char*s){strcpy(d,s);}", "unsafe-strcpy");
         assert_fires("void f(char*d,char*s){strcat(d,s);}", "unsafe-strcat");
         assert_fires("void f(char*b){sprintf(b,\"x\");}", "unsafe-sprintf");
-        assert_fires("#include <stdarg.h>\nvoid f(char*b,va_list a){vsprintf(b,\"x\",a);}", "unsafe-vsprintf");
+        assert_fires(
+            "#include <stdarg.h>\nvoid f(char*b,va_list a){vsprintf(b,\"x\",a);}",
+            "unsafe-vsprintf",
+        );
     }
     #[test]
     fn strcpy_s_is_not_strcpy() {
@@ -826,7 +895,10 @@ mod tests {
     }
     #[test]
     fn format_string_vuln_quiet_with_format_arg() {
-        assert_quiet("void f(const char*m){printf(\"%s\", m);}", "format-string-vuln");
+        assert_quiet(
+            "void f(const char*m){printf(\"%s\", m);}",
+            "format-string-vuln",
+        );
     }
 
     #[test]
@@ -936,8 +1008,11 @@ mod tests {
         let issues = scan(src);
         // Make sure no architecture issue with name "switch" exists.
         let bad = issues.iter().any(|i| i.message.contains("'switch'"));
-        assert!(!bad, "should not detect 'switch' as a function. Issues: {:?}",
-            issues.iter().collect::<Vec<_>>());
+        assert!(
+            !bad,
+            "should not detect 'switch' as a function. Issues: {:?}",
+            issues.iter().collect::<Vec<_>>()
+        );
     }
 
     // ---------- dead code ----------
@@ -1026,7 +1101,8 @@ pub fn run_rules(file: &str, src_orig: &str, clean: &str) -> Vec<Issue> {
     // Deduplicate exact (line, col, rule) repeats — overlapping regex iteration
     // can flag the same position twice.
     issues.sort_by(|a, b| {
-        a.line.cmp(&b.line)
+        a.line
+            .cmp(&b.line)
             .then(a.col.cmp(&b.col))
             .then_with(|| a.rule.cmp(b.rule))
     });

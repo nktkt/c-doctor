@@ -4,12 +4,27 @@ use std::path::{Path, PathBuf};
 
 pub fn scan(paths: &[PathBuf]) -> Vec<PathBuf> {
     let skip: HashSet<&str> = [
-        "node_modules", ".git", ".hg", ".svn",
-        "build", "dist", "out", "bin", "obj",
-        "cmake-build-debug", "cmake-build-release",
-        ".cache", ".idea", ".vscode",
-        "third_party", "vendor", "target",
-    ].iter().copied().collect();
+        "node_modules",
+        ".git",
+        ".hg",
+        ".svn",
+        "build",
+        "dist",
+        "out",
+        "bin",
+        "obj",
+        "cmake-build-debug",
+        "cmake-build-release",
+        ".cache",
+        ".idea",
+        ".vscode",
+        "third_party",
+        "vendor",
+        "target",
+    ]
+    .iter()
+    .copied()
+    .collect();
 
     let mut out = Vec::new();
     for p in paths {
@@ -36,10 +51,8 @@ fn walk(p: &Path, skip: &HashSet<&str>, out: &mut Vec<PathBuf>) {
         for entry in entries.flatten() {
             walk(&entry.path(), skip, out);
         }
-    } else if meta.is_file() {
-        if is_c_file(p) {
-            out.push(p.to_path_buf());
-        }
+    } else if meta.is_file() && is_c_file(p) {
+        out.push(p.to_path_buf());
     }
 }
 

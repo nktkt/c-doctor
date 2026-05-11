@@ -6,7 +6,7 @@ set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"
-DOC="$PROJECT_DIR/rust/target/release/c-doctor"
+DOC="$PROJECT_DIR/target/release/c-doctor"
 
 payload="$(cat)"
 
